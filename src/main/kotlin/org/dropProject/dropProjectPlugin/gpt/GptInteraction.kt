@@ -65,14 +65,14 @@ class GptInteraction(var project: Project) {
     private fun processPrompt(): String {
 
         val settingsState = SettingsState.getInstance()
-        val apiKey = "INSERIR KEY"
+        val apiKey = "Insere a Key"
 
         if (apiKey == "") {
             DefaultNotification.notify(project, "No API key set")
             return "Error: No API key set"
         }
 
-        var apiUrl = "INSERIR O URL"
+        var apiUrl = "Insere o URL"
 
         //apiUrl = "https://api.openai.com/v1/completions"
 

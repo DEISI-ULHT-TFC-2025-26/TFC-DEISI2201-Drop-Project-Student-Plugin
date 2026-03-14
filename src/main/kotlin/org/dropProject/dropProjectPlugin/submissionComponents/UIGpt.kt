@@ -24,105 +24,12 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
-
-
-/*
-class UIGpt {
-
-    var gptInteraction = GptInteraction()
-
-    fun buildComponents(): JBScrollPane {
-
-        val panel = JPanel()
-
-        val textField = JBTextField()
-        textField.emptyText.text = "placeholder"
-
-        val responseArea = JBTextArea("Response")
-        responseArea.foreground = JBColor.WHITE
-        responseArea.background = JBColor.BLACK
-
-        //exprimentar a cena do editor n sei q que o gpt recomenda
-
-        val button = JButton("Send Prompt")
-        button.addMouseListener(object : MouseAdapter() {
-            override fun mousePressed(e: MouseEvent?) {
-
-                if (textField.text != null && textField.text != "") {
-                    gptInteraction.executePrompt(textField.text)
-                    responseArea.text = gptInteraction.getChatLog()
-                }
-
-            }
-        })
-
-        panel.add(button)
-        panel.add(textField)
-        panel.add(responseArea)
-
-
-        val scrollPane = JBScrollPane(panel)
-        val viewport: JViewport = scrollPane.viewport
-        viewport.scrollMode = JViewport.SIMPLE_SCROLL_MODE
-        scrollPane.horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        scrollPane.verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_ALWAYS
-        viewport.extentSize = Dimension(0, 0)
-
-        return scrollPane
-    }
-}
-*/
-
-/*
-class UIGpt {
-
-    var gptInteraction = GptInteraction()
-
-    fun buildComponents(): JBScrollPane {
-
-        val panel = JPanel()
-
-        val textField = JBTextField()
-        textField.emptyText.text = "placeholder"
-
-        val responseArea = JBTextArea("Response")
-        responseArea.foreground = JBColor.WHITE
-        responseArea.background = JBColor.BLACK
-
-
-
-        val button = JButton("Send Prompt")
-        button.addMouseListener(object : MouseAdapter() {
-            override fun mousePressed(e: MouseEvent?) {
-
-                if (textField.text != null && textField.text != "") {
-                    gptInteraction.executePrompt(textField.text)
-                    responseArea.text = gptInteraction.getChatLog()
-                }
-
-            }
-        })
-
-        panel.add(button)
-        panel.add(textField)
-        panel.add(responseArea)
-
-
-        val scrollPane = JBScrollPane(panel)
-        val viewport: JViewport = scrollPane.viewport
-        viewport.scrollMode = JViewport.SIMPLE_SCROLL_MODE
-        scrollPane.horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        scrollPane.verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_ALWAYS
-        viewport.extentSize = Dimension(0, 0)
-
-        return scrollPane
-    }
-}
-*/
-
+import javax.swing.event.HyperlinkEvent
 
 class UIGpt() {
 
@@ -139,26 +46,25 @@ class UIGpt() {
     private var chatHtml = ChatHtmlBuilder()
     private var usefulButton = JButton("Useful", AllIcons.Ide.LikeSelected)
     private var notUsefulButton = JButton("Not Useful", AllIcons.Ide.DislikeSelected)
-    private var copyCodeButton = JButton("Copy Code")
+    // O botão global copyCodeButton foi removido daqui
     private var resetButton = JButton("Clear Chat", AllIcons.Actions.Refresh)
     private var askTwiceCheckBox = CheckBox("Ask for 2 Solutions")
     private var askTwice = false
     private var waitingForResponse = false
-    private val ratingButtons = false;
+    private val ratingButtons = false
 
     init {
         // Configuração da fonte e margens do campo de texto
         textField.font = Font("Dialog", Font.PLAIN, 12)
         textField.margin = JBUI.insets(5)
-        textField.lineWrap = true // Ativa quebra de linha automática
-        textField.wrapStyleWord = true // Quebra apenas em palavras completas
-        textField.rows = 4 // Define 4 linhas de altura por padrão
+        textField.lineWrap = true
+        textField.wrapStyleWord = true
+        textField.rows = 4
 
         // Texto de sugestão (Placeholder) em itálico
         textField.emptyText.text = "Insira aqui a sua prompt"
         textField.emptyText.setFont(Font("Dialog", Font.ITALIC, 12))
 
-        // Listener para enviar com Enter e fazer nova linha com Shift+Enter
         textField.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent) {
                 if (e.keyCode == KeyEvent.VK_ENTER) {
@@ -178,7 +84,7 @@ class UIGpt() {
             override fun changedUpdate(e: DocumentEvent) = updateTextFieldSize()
         })
 
-        // Configuração da área de mensagens (HTML)
+        // Configuração da área de mensagens (HTML) com Listener de Cópia
         responseArea.apply {
             contentType = "text/html"
             editorKit = HTMLEditorKitBuilder().build().also {
@@ -189,6 +95,31 @@ class UIGpt() {
             background = JBColor.background()
             isOpaque = true
             text = chatHtml.getHtmlChat()
+
+            // NOVO: Listener para detectar o clique no link de "Copy" dentro do HTML
+            responseArea.addHyperlinkListener { e ->
+                if (e.eventType == HyperlinkEvent.EventType.ACTIVATED) {
+                    val description = e.description
+                    if (description.startsWith("copy://")) {
+                        // 1. Descodifica o URL (resolve espaços e símbolos básicos)
+                        var codeToCopy = URLDecoder.decode(description.substring(7), StandardCharsets.UTF_8.name())
+
+                        // 2. Resolve as entidades HTML (transforma &quot; em ", &lt; em <, etc.)
+                        // Se o seu projeto não reconhecer o StringEscapeUtils, use o replace manual abaixo
+                        codeToCopy = codeToCopy
+                            .replace("&quot;", "\"")
+                            .replace("&apos;", "'")
+                            .replace("&lt;", "<")
+                            .replace("&gt;", ">")
+                            .replace("&amp;", "&")
+
+                        val stringSelection = StringSelection(codeToCopy)
+                        Toolkit.getDefaultToolkit().systemClipboard.setContents(stringSelection, null)
+
+                        JOptionPane.showMessageDialog(this, "Code copied to clipboard!", "Success", JOptionPane.INFORMATION_MESSAGE)
+                    }
+                }
+            }
 
             UIUtil.doNotScrollToCaret(this)
             UIUtil.invokeLaterIfNeeded {
@@ -211,15 +142,6 @@ class UIGpt() {
             gptInteraction.markLastResponseAs(false)
         }
 
-        copyCodeButton.addActionListener {
-            val codeBlock = gptInteraction.getLastBlockOfCode()
-            if (codeBlock != null) {
-                val stringSelection = StringSelection(codeBlock)
-                val clipboard = Toolkit.getDefaultToolkit().systemClipboard
-                clipboard.setContents(stringSelection, null)
-            }
-        }
-
         // Botão de envio renomeado para GenAI
         sendButton = JButton("Ask GenAI")
         sendButton.addMouseListener(object : MouseAdapter() {
@@ -236,14 +158,6 @@ class UIGpt() {
         val gbc = GridBagConstraints()
         gbc.insets = JBUI.insets(3)
 
-        // Row 0: Botão Copy Code
-        gbc.gridx = 0
-        gbc.gridy = 0
-        gbc.gridwidth = 2
-        gbc.weightx = 1.0
-        gbc.fill = GridBagConstraints.BOTH
-        inputAndSubmitPanel.add(copyCodeButton, gbc)
-
         // Row 1: Botões de Rating (se ativos)
         if(ratingButtons) {
             gbc.gridwidth = 1
@@ -251,6 +165,7 @@ class UIGpt() {
             gbc.gridy = 1
             gbc.weightx = 0.5
             gbc.anchor = GridBagConstraints.CENTER
+            gbc.fill = GridBagConstraints.BOTH
             inputAndSubmitPanel.add(usefulButton, gbc)
 
             gbc.gridx = 1
@@ -267,7 +182,7 @@ class UIGpt() {
         gbc.fill = GridBagConstraints.HORIZONTAL
         inputAndSubmitPanel.add(inputLabel, gbc)
 
-        // Row 3: Caixa de Texto (JTextArea com 4 linhas dentro de um ScrollPane)
+        // Row 3: Caixa de Texto
         gbc.gridx = 0
         gbc.gridy = 3
         gbc.gridwidth = 2
@@ -294,7 +209,7 @@ class UIGpt() {
         gbc.fill = GridBagConstraints.BOTH
         inputAndSubmitPanel.add(sendButton, gbc)
 
-        // Row 6: Botão Clear Chat (FIXO EM BAIXO)
+        // Row 6: Botão Clear Chat
         gbc.gridx = 0
         gbc.gridy = 6
         gbc.gridwidth = 2
@@ -305,23 +220,19 @@ class UIGpt() {
             askTwice = askTwiceCheckBox.isSelected
         }
 
-        // Ajuste da altura do painel para acomodar todos os elementos
-        inputAndSubmitPanel.preferredSize = Dimension(600, 250)
+        // Ajuste da altura do painel inferior (reduzido um pouco pois tiramos o Copy Code global)
+        inputAndSubmitPanel.preferredSize = Dimension(600, 220)
 
-        // --- MONTAGEM FINAL DA ESTRUTURA (BORDERLAYOUT) ---
+        // --- MONTAGEM FINAL DA ESTRUTURA ---
         val mainViewPanel = JPanel(BorderLayout())
-
-        // Criamos o ScrollPane APENAS para as mensagens
         val chatScrollPane = JBScrollPane(responseArea)
         chatScrollPane.horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         chatScrollPane.verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_ALWAYS
         chatScrollPane.viewport.scrollMode = JViewport.SIMPLE_SCROLL_MODE
 
-        // Organizamos no painel principal: chat no centro, controlos no fundo
         mainViewPanel.add(chatScrollPane, BorderLayout.CENTER)
         mainViewPanel.add(inputAndSubmitPanel, BorderLayout.SOUTH)
 
-        // Atribuímos à variável da classe envolvida num scroll externo invisível
         uI = JBScrollPane(mainViewPanel).apply {
             border = null
             horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
@@ -335,57 +246,21 @@ class UIGpt() {
         textField.revalidate()
     }
 
-
     fun buildComponents(): JBScrollPane {
-
-        //val editor: Editor = DataManager.getInstance().getDataContext().getData(DataConstants.EDITOR) as Editor
-        //val editor2: Editor = DataManager.getInstance().dataContextFromFocusAsync.getData(DataConstants.EDITOR) as Editor
-        //DataManager.getInstance().saveInDataContext(DataManager.getInstance().getDataContext(), Key.create("ObjectGPTUI"), this)
-        //editor.putUserData(Key.create("ObjectGPTUI"), this)
-
         return uI
     }
 
-
-    /*
-    private fun escapeKotlinSpecialCharacters(input: String): String {
-        // Define the characters to be escaped
-        val specialCharacters = setOf("\\", "$", "\"", "\n", "\r", "\t", "\b", "\u000c")
-
-        // Escape each special character
-        var escaped = input
-        for (character in specialCharacters) {
-            //escaped = escaped.replace(character, "\\$character")
-            escaped = escaped.replace(character, "") // TEST if it woorks well now
-        }
-
-        escaped = escaped.replace("'", "") //for some reason this character breaks everything
-
-        return escaped
-    }
-    */
-
     private fun createComboBoxPanel(): JPanel {
         phraseComboBox = JComboBox(phrases.toTypedArray())
-
         val label = JLabel("Suffix with:")
-
-        // Create a JPanel and set BoxLayout to align items horizontally
         val panel = JPanel()
         panel.layout = BoxLayout(panel, BoxLayout.X_AXIS)
-
-        // Add the label and combo box to the panel
         panel.add(label)
-        panel.add(Box.createHorizontalStrut(5)) // Adds a fixed space between label and combo box
+        panel.add(Box.createHorizontalStrut(5))
         panel.add(phraseComboBox)
-
-        // Optional: Adjust spacing and alignment further if needed
         label.alignmentY = Component.CENTER_ALIGNMENT
         phraseComboBox.alignmentY = Component.CENTER_ALIGNMENT
-
-        // Ensuring the panel does not stretch vertically more than necessary
         panel.maximumSize = panel.preferredSize
-
         return panel
     }
 
@@ -411,25 +286,19 @@ class UIGpt() {
 
             textField.text = ""
 
-            // Start a coroutine to perform the GPT interaction
             scope.launch(Dispatchers.Default) {
-
-                //Adding the prompt that is being sent
                 gptInteraction.addPromptMessage(escapedMessage)
                 chatHtml.append("User", escapedMessage, true)
                 gptInteraction.logMessageUser(escapedMessage)
                 updateChatScreen()
 
                 val response = gptInteraction.executePrompt(escapedMessage)
-                //Adding the response
-
-                chatHtml.append("ChatGPT", response, false)
+                chatHtml.append("GenAI", response, false)
                 updateChatScreen()
 
                 if (askTwice) {
                     val altResponse = gptInteraction.executePrompt(escapedMessage)
-
-                    chatHtml.append("ChatGPT", altResponse, false)
+                    chatHtml.append("GenAI", altResponse, false)
                     updateChatScreen()
 
                     SwingUtilities.invokeLater {
@@ -441,50 +310,36 @@ class UIGpt() {
                     sendButton.isEnabled = true
                     waitingForResponse = false
                 }
-
             }
         }
     }
 
     private fun openDiffViewer(response1: String, response2: String) {
-        val project = project
-
         val content1 = DiffContentFactory.getInstance().create(project, response1)
         val content2 = DiffContentFactory.getInstance().create(project, response2)
-
         val request = SimpleDiffRequest("Response Comparison", content1, content2, "Original Response", "Alternative Response")
         DiffManager.getInstance().showDiff(project, request)
+    }
+
+    fun updatePhrases(sentenceList: MutableList<String>) {
+        phrases = sentenceList as ArrayList<String>
+
+        // Garante que a opção vazia continua no início
+        if (phrases.isEmpty() || phrases[0] != "") {
+            phrases.add(0, "")
+        }
+
+        phraseComboBox.removeAllItems() // Limpa os itens atuais do JComboBox
+
+        for (phrase in phrases) {
+            phraseComboBox.addItem(phrase) // Adiciona as novas frases das definições
+        }
     }
 
     private fun updateChatScreen() {
         responseArea.text = chatHtml.getHtmlChat()
         SwingUtilities.invokeLater {
             uI.verticalScrollBar.value = uI.verticalScrollBar.maximum
-        }
-        //println(chatHtml.getHtmlChat())
-    }
-
-    private fun updatePhrasadses() { //might be useless
-        val settingsState = SettingsState.getInstance()
-        phrases = ArrayList(settingsState.sentenceList)
-
-        phrases.add(0, "") // Option that doesn't add anything to the prompt
-
-        phraseComboBox.removeAllItems() // Correct method to clear all items from JComboBox
-        for (phrase in phrases) {
-            phraseComboBox.addItem(phrase) // Add each phrase to the JComboBox
-        }
-    }
-
-    fun updatePhrases(sentenceList: MutableList<String>) {
-        phrases = sentenceList as ArrayList<String>
-
-        phrases.add(0, "") // Option that doesn't add anything to the prompt
-
-        phraseComboBox.removeAllItems() // Clear all items from JComboBox
-
-        for (phrase in phrases) {
-            phraseComboBox.addItem(phrase) // Add each phrase to the JComboBox
         }
     }
 
@@ -496,9 +351,7 @@ class UIGpt() {
 
     companion object {
         var instance1 : UIGpt? = null
-
         fun getInstance() : UIGpt {
-
             if(instance1 == null) {
                 instance1 = UIGpt()
             }
