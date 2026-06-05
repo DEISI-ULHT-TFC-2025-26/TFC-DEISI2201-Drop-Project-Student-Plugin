@@ -68,9 +68,18 @@
 
         <action id="org.dropProject.dropProjectPlugin.gpt.SendToGptConsole"
                 class="org.dropProject.dropProjectPlugin.gpt.SendToGptConsole"
-                text="Send to GenAI"
+                text="Send to GenAI (Console)"
                 description="Sends the selected text to the GenAI prompt input box">
             <add-to-group group-id="ConsoleEditorPopupMenu" anchor="last"/>
         </action>
+
+        <group id="org.dropProject.dropProjectPlugin.gpt.AskGenAiGroup"
+               class="org.dropProject.dropProjectPlugin.gpt.AskGenAiGroup"
+               text="Ask GenAI to..."
+               popup="true"
+               description="List of prompt prefixes for the selected code">
+            <add-to-group group-id="EditorPopupMenu" before="org.dropProject.dropProjectPlugin.gpt.SendToGptEditor"/>
+            <add-to-group group-id="ConsoleEditorPopupMenu" before="org.dropProject.dropProjectPlugin.gpt.SendToGptConsole"/>
+        </group>
     </actions>
 </idea-plugin>

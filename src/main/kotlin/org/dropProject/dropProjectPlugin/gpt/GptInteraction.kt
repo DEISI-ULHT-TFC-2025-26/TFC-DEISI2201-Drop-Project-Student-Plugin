@@ -22,7 +22,7 @@ import javax.net.ssl.X509TrustManager
 
 
 class GptInteraction(var project: Project) {
-    private val model = "gpt-4-turbo"
+    private val model = "gemma-4-e4b"
     private val separator = FileSystems.getDefault().separator
     //private val logFileDirectory = "${System.getProperty("user.home")}${separator}Documents${separator}Drop Project Plugin${separator}"
     private val logFileDirectory = project.let { FileEditorManager.getInstance(it).project.basePath.toString() }
@@ -65,16 +65,16 @@ class GptInteraction(var project: Project) {
     private fun processPrompt(): String {
 
         val settingsState = SettingsState.getInstance()
-        val apiKey = "Insere a Key"
+        val apiKey = "Colocar Key da API"
 
         if (apiKey == "") {
             DefaultNotification.notify(project, "No API key set")
             return "Error: No API key set"
         }
 
-        var apiUrl = "Insere o URL"
+        var apiUrl = "colocar URL da API"
 
-        //apiUrl = "https://api.openai.com/v1/completions"
+        //apiUrl = "https://api.openai.com/v1/completions" 
 
         val messagesJson = messages.joinToString(",") {
             """
