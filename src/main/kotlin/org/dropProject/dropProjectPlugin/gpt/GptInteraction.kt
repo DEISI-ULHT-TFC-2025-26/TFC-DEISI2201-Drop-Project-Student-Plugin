@@ -48,6 +48,24 @@ class GptInteraction(var project: Project) {
         }
     }
 
+    // 🔍 Função auxiliar para ler o ficheiro de contexto GenAI.md na raiz do projeto
+    private fun getProjectContext(): String {
+        try {
+            val basePath = project.basePath ?: return ""
+            val contextFile = File(basePath, "GenAI.md")
+
+            if (contextFile.exists() && contextFile.isFile) {
+                val content = contextFile.readText(Charsets.UTF_8).trim()
+                if (content.isNotEmpty()) {
+                    return content
+                }
+            }
+        } catch (e: Exception) {
+            println("Erro ao ler o ficheiro GenAI.md: ${e.message}")
+        }
+        return ""
+    }
+
     fun executePrompt(prompt: String): String {
         addPromptMessage(prompt) // adiciona a mensagem do user à lista
 
@@ -65,22 +83,34 @@ class GptInteraction(var project: Project) {
     private fun processPrompt(): String {
 
         val settingsState = SettingsState.getInstance()
-        val apiKey = "Colocar Key da API"
+        val apiKey = "Key da API"
 
         if (apiKey == "") {
             DefaultNotification.notify(project, "No API key set")
             return "Error: No API key set"
         }
 
-        var apiUrl = "colocar URL da API"
+        var apiUrl = "URL da API"
 
-        //apiUrl = "https://api.openai.com/v1/completions" 
+        //apiUrl = "https://api.openai.com/v1/completions"
 
-        val messagesJson = messages.joinToString(",") {
+        val finalMessages = ArrayList<Message>()
+        val contextText = getProjectContext()
+        if (contextText.isNotEmpty()) {
+            finalMessages.add(Message("system", contextText))
+        }
+        finalMessages.addAll(messages)
+
+        val messagesJson = finalMessages.joinToString(",") {
+            val escapedContent = it.content
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
             """
             {
                 "role": "${it.role}",
-                "content": "${it.content}"
+                "content": "$escapedContent"
             }
             """
         }
@@ -102,9 +132,7 @@ class GptInteraction(var project: Project) {
 
         print("000" + builder + "\n")
 
-// 🔧 Suporte para novas chaves 'sk-proj-'
         if (apiKey.startsWith("sk-proj-")) {
-            // Podes deixar "default" ou usar o ID real do teu projeto (ex: proj_abc123)
             builder.addHeader("OpenAI-Project", "proj_8sQTuo7LxVtQB41bRrFEZiCc")
 
             print("cuidado" + "\n")
@@ -119,13 +147,13 @@ class GptInteraction(var project: Project) {
         try {
 
             // okhttp3.Request$Builder@728eb99d001Request{method=POST, url=https://modelos.ai.ulusofona.pt/v1/completions, headers=[Content-Type:application/json, Authorization:Bearer sk-Oo32-A30q8CMaEMIzXG3Fg]}Exception in thread "DefaultDispatcher-worker-1" java.lang.NoClassDefFoundError: Could not initialize class kotlinx.coroutines.CoroutineExceptionHandlerImplKt
-            //	at kotlinx.coroutines.CoroutineExceptionHandlerKt.handleCoroutineException(CoroutineExceptionHandler.kt:33)
-            //	at kotlinx.coroutines.DispatchedTask.handleFatalException(DispatchedTask.kt:146)
-            //	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:115)
-            //	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:571)
-            //	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:750)
-            //	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:678)
-            //	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:665)
+            //  at kotlinx.coroutines.CoroutineExceptionHandlerKt.handleCoroutineException(CoroutineExceptionHandler.kt:33)
+            //  at kotlinx.coroutines.DispatchedTask.handleFatalException(DispatchedTask.kt:146)
+            //  at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:115)
+            //  at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:571)
+            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:750)
+            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:678)
+            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:665)
             val response = client.newCall(request).execute()
 
             print("002" + response)
