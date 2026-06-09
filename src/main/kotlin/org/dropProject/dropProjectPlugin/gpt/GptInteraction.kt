@@ -65,8 +65,6 @@ class GptInteraction(var project: Project) {
         }
         return ""
     }
-
-    // 🟢 REINTEGRADA: Esta é a função que faltava e que o UIGpt.kt precisa para compilar!
     fun executePrompt(prompt: String): String {
         addPromptMessage(prompt) // adiciona a mensagem do user à lista
 
