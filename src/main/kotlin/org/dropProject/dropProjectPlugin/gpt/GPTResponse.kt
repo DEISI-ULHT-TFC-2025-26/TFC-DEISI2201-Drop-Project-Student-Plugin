@@ -34,7 +34,7 @@ data class Message(
     @Json(name = "role")
     val role: String,
     @Json(name = "content")
-    val content: String
+    var content: String
 )
 
 @JsonClass(generateAdapter = true)

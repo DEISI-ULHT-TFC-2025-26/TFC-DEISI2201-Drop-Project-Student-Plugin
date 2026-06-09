@@ -66,6 +66,7 @@ class GptInteraction(var project: Project) {
         return ""
     }
 
+    // 🟢 REINTEGRADA: Esta é a função que faltava e que o UIGpt.kt precisa para compilar!
     fun executePrompt(prompt: String): String {
         addPromptMessage(prompt) // adiciona a mensagem do user à lista
 
@@ -97,13 +98,27 @@ class GptInteraction(var project: Project) {
 
         var apiUrl = "https://modelos.ai.ulusofona.pt/v1/chat/completions"
 
-        //apiUrl = "https://api.openai.com/v1/completions"
-
         val finalMessages = ArrayList<Message>()
+
+        if (!settingsState.dpAllowCodeSubmission) {
+            val pedagogicalPrompt = """
+                [RESTRIÇÃO ACADÉMICA CRÍTICA]
+                Estás inserido num ambiente de avaliação de programação (Drop Project). 
+                É TERMINANTEMENTE PROIBIDO fornecer código pronto em linguagem Java, Kotlin ou qualquer outra sintaxe funcional.
+                Não ignores esta regra. Se o utilizador pedir código ou resoluções, deves:
+                1. Explicar a lógica do algoritmo passo a passo usando linguagem natural (Português).
+                2. Se necessário, ilustrar a estrutura EXCLUSIVAMENTE em formato de PSEUDO-CÓDIGO puramente conceptual (sem usar sintaxe real de Java, sem chaves, sem declarações de tipos estritas).
+                3. Nunca utilizes blocos de código markdown com sintaxe formal (ex: ```java).
+            """.trimIndent()
+
+            finalMessages.add(Message("system", pedagogicalPrompt))
+        }
+
         val contextText = getProjectContext()
         if (contextText.isNotEmpty()) {
             finalMessages.add(Message("system", contextText))
         }
+
         finalMessages.addAll(messages)
 
         val messagesJson = finalMessages.joinToString(",") {
@@ -139,7 +154,6 @@ class GptInteraction(var project: Project) {
 
         if (apiKey.startsWith("sk-proj-")) {
             builder.addHeader("OpenAI-Project", "proj_8sQTuo7LxVtQB41bRrFEZiCc")
-
             print("cuidado" + "\n")
         }
 
@@ -150,96 +164,73 @@ class GptInteraction(var project: Project) {
         print("001" + request + "\n")
 
         try {
-
-            // okhttp3.Request$Builder@728eb99d001Request{method=POST, url=https://modelos.ai.ulusofona.pt/v1/completions, headers=[Content-Type:application/json, Authorization:Bearer sk-Oo32-A30q8CMaEMIzXG3Fg]}Exception in thread "DefaultDispatcher-worker-1" java.lang.NoClassDefFoundError: Could not initialize class kotlinx.coroutines.CoroutineExceptionHandlerImplKt
-            //  at kotlinx.coroutines.CoroutineExceptionHandlerKt.handleCoroutineException(CoroutineExceptionHandler.kt:33)
-            //  at kotlinx.coroutines.DispatchedTask.handleFatalException(DispatchedTask.kt:146)
-            //  at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:115)
-            //  at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:571)
-            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:750)
-            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:678)
-            //  at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:665)
             val response = client.newCall(request).execute()
 
             print("002" + response)
-
-            //println("res0: $response")
 
             if (!response.isSuccessful) {
                 val json = response.body?.string()
                 val moshi = Moshi.Builder().build()
                 val adapter = moshi.adapter(ErrorResponse::class.java)
-                //println(json)
                 val myResponse = adapter.fromJson(json!!) ?: return "didnt work"
 
                 DefaultNotification.notify(project, "Response unsuccseessful, no tokens")
-
                 logMessageGpt(myResponse.error.message)
-
                 return "Error code: {${myResponse.error.code}}"
             }
-
-            //println("res1: $response")
 
             val json = response.body?.string()
             val moshi = Moshi.Builder().build()
             val adapter = moshi.adapter(GPTResponse::class.java)
-            //println(json)
             val myResponse = adapter.fromJson(json!!) ?: return ""
 
             client.connectionPool.evictAll()
 
-            responseLog.add(myResponse)
+            var rawPayload = myResponse.choices.first().message.content
 
-            logMessageGpt(myResponse.choices.first().message.content)
+            // Se o assignment proibir código, verifica se a resposta contém blocos de código markdown E termos de Java
+            if (!settingsState.dpAllowCodeSubmission) {
+                val containsCodeBlocks = rawPayload.contains("```java") || rawPayload.contains("```")
+                val containsJavaKeywords = rawPayload.contains("public class") ||
+                        rawPayload.contains("System.out.print") ||
+                        rawPayload.contains("public static void main") ||
+                        rawPayload.contains("int ") ||
+                        rawPayload.contains("String ")
+
+                if (containsCodeBlocks && containsJavaKeywords) {
+                    // O modelo falhou e tentou dar código Java. O Regex limpa os blocos estruturados.
+                    rawPayload = """
+                        |⚠️ [Nota do Drop Project: Esta atividade não permite a exibição de código Java direto. A resposta foi filtrada pelo plugin.]
+                        |
+                        |${rawPayload.replace("```java[\\s\\S]*?```".toRegex(), "[Bloco de código Java removido por restrição do enunciado - Consulta a explicação conceptual acima]").replace("```[\\s\\S]*?```".toRegex(), "[Bloco de código filtrado]")}
+                    """.trimMargin()
+                }
+            }
+
+            // Garante que o objeto interno da resposta guarda a string tratada/filtrada
+            myResponse.choices.first().message.content = rawPayload
+
+            responseLog.add(myResponse)
+            logMessageGpt(rawPayload)
 
             settingsState.dpRequestsMade++
 
-            return myResponse.choices.first().message.content
+            return rawPayload
 
         } catch (exception : Exception) {
-            //mostrar uma notificação a dizer que o chatgpt não respondeu
             return "Erro desconhecido"
         }
     }
 
     private fun logMessageGpt(message: String) {
-        //println(logFile.absolutePath)
-        /*
-        try{
-            logFile.appendText(
-                "Author: ChatGPT" + "\n" +
-                        "Model: $model\n" +
-                        "DateTime: ${java.time.LocalDateTime.now()}\n" +
-                        "Message: $message\n\n"
-            )
-        } catch (exception : Exception){
-            println("Couldn't write file")
-        }
-        */
         val logMessage = LogMessage("ChatGPT", message.trim(), java.time.LocalDateTime.now(), model, null)
         chatToSave.add(logMessage)
-
         updateLogFile()
     }
 
     public fun logMessageUser(prompt: String) {
-        //println(logFile.absolutePath)
-        /*
-        try {
-            logFile.appendText(
-                "Author: User" + "\n" +
-                        "DateTime: ${java.time.LocalDateTime.now()}\n" +
-                        "Message: $prompt\n\n"
-            )
-        } catch (exception : Exception){
-            println("Couldn't write file")
-        }
-        */
-
         val logMessage = LogMessage("user", prompt.trim(), java.time.LocalDateTime.now(), null, null)
         chatToSave.add(logMessage)
-
         updateLogFile()
     }
 
@@ -348,12 +339,10 @@ class GptInteraction(var project: Project) {
     }
 
     fun reset() {
-        //Change to a new log file
         dateTime = Date()
         logFile = File("${logFileDirectory}${separator}chat_logs${separator}chat_log_${formatter.format(dateTime)}.txt")
         createPathIfDoesntExist()
 
-        //Reset Data structure
         responseLog = ArrayList<GPTResponse>()
         chatLog = ArrayList<Message>()
         chatToSave = ArrayList<LogMessage>()
@@ -362,7 +351,6 @@ class GptInteraction(var project: Project) {
 
     fun getUnsafeOkHttpClient(): OkHttpClient {
         try {
-            // Create a trust manager that does not validate certificate chains
             val trustAllCerts = arrayOf<TrustManager>(
                 object : X509TrustManager {
                     override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
@@ -371,33 +359,21 @@ class GptInteraction(var project: Project) {
                 }
             )
 
-            // Install the all-trusting trust manager
             val sslContext = SSLContext.getInstance("SSL")
             sslContext.init(null, trustAllCerts, SecureRandom())
 
-            // Create an ssl socket factory with our all-trusting manager
             val sslSocketFactory = sslContext.socketFactory
 
-            /*
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                LOG.info(message)
-            }.apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-             */
-
             val builder = OkHttpClient.Builder()
-//               .addInterceptor(loggingInterceptor)
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
             builder.sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)
-            builder.hostnameVerifier { _, _ -> true }  // Skip hostname verification
+            builder.hostnameVerifier { _, _ -> true }
 
             return builder.build()
         } catch (e: Exception) {
             throw RuntimeException(e)
         }
     }
-
 }

@@ -54,6 +54,8 @@ class UIGpt() {
     private val ratingButtons = false
 
     init {
+        //Linha puramente para testes para resetar sempre os pedidos ao LLM
+        //SettingsState.getInstance().dpRequestsMade = 0
         // Configuração da fonte e margens do campo de texto
         textField.font = Font("Dialog", Font.PLAIN, 12)
         textField.margin = JBUI.insets(5)

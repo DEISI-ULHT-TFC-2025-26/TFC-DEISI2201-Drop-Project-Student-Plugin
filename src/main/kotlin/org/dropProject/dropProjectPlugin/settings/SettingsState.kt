@@ -24,6 +24,7 @@ class SettingsState : PersistentStateComponent<SettingsState> {
     var sentenceList: MutableList<String> = mutableListOf()
     var dpMaxRequestsAllowed: Int = 3
     var dpRequestsMade: Int = 0
+    var dpAllowCodeSubmission: Boolean = false
 
     companion object {
         fun getInstance(): SettingsState {
