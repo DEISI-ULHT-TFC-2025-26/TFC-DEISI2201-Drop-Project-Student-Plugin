@@ -4,7 +4,6 @@ import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.ui.Messages
 import org.dropProject.dropProjectPlugin.settings.SettingsState
 import org.dropProject.dropProjectPlugin.submissionComponents.UIGpt
@@ -28,6 +27,24 @@ class AskGenAiGroup : ActionGroup() {
             SendWithPrefixAction(prefix)
         }.toTypedArray()
     }
+
+    // Bloqueia o menu de grupo inteiro "Ask GenAI to..." caso o limite de pedidos tenha sido atingido
+    override fun update(e: AnActionEvent) {
+        val settings = SettingsState.getInstance()
+        val editor = e.getData(CommonDataKeys.EDITOR)
+
+        val hasSelection = editor?.selectionModel?.hasSelection() ?: false
+        val hasTokensLeft = settings.dpRequestsMade < settings.dpMaxRequestsAllowed
+
+        // Só fica ativo se houver texto selecionado E ainda restarem pedidos disponíveis
+        e.presentation.isEnabled = hasSelection && hasTokensLeft
+
+        if (!hasTokensLeft) {
+            e.presentation.text = "Ask GenAI to... (Limit Reached)"
+        } else {
+            e.presentation.text = "Ask GenAI to..."
+        }
+    }
 }
 
 class SendWithPrefixAction(private val prefix: String) : AnAction(prefix) {
@@ -43,7 +60,7 @@ class SendWithPrefixAction(private val prefix: String) : AnAction(prefix) {
                 |
                 |```
                 |$selectedText
-                |
+                |```
         """.trimMargin()
 
             uiGPT.addToPrompt(finalPrompt)
@@ -58,8 +75,13 @@ class SendWithPrefixAction(private val prefix: String) : AnAction(prefix) {
     }
 
     override fun update(e: AnActionEvent) {
+        val settings = SettingsState.getInstance()
         val editor = e.getData(CommonDataKeys.EDITOR)
-        e.presentation.isEnabled = editor?.selectionModel?.hasSelection() ?: false
+
+        val hasSelection = editor?.selectionModel?.hasSelection() ?: false
+        val hasTokensLeft = settings.dpRequestsMade < settings.dpMaxRequestsAllowed
+
+        e.presentation.isEnabled = hasSelection && hasTokensLeft
     }
 }
 
@@ -80,6 +102,22 @@ class SendToGptEditor : AnAction() {
             Messages.showInfoMessage("No text selected", "Send to GenAI")
         }
     }
+
+    override fun update(e: AnActionEvent) {
+        val settings = SettingsState.getInstance()
+        val editor = e.getData(CommonDataKeys.EDITOR)
+
+        val hasSelection = editor?.selectionModel?.hasSelection() ?: false
+        val hasTokensLeft = settings.dpRequestsMade < settings.dpMaxRequestsAllowed
+
+        e.presentation.isEnabled = hasSelection && hasTokensLeft
+
+        if (!hasTokensLeft) {
+            e.presentation.text = "Send to GenAI (Limit Reached)"
+        } else {
+            e.presentation.text = "Send to GenAI"
+        }
+    }
 }
 
 class SendToGptConsole : AnAction() {
@@ -97,6 +135,22 @@ class SendToGptConsole : AnAction() {
             }
         } else {
             Messages.showInfoMessage("No text selected", "Send to GenAI")
+        }
+    }
+
+    override fun update(e: AnActionEvent) {
+        val settings = SettingsState.getInstance()
+        val editor = e.getData(CommonDataKeys.EDITOR)
+
+        val hasSelection = editor?.caretModel?.currentCaret?.hasSelection() ?: false
+        val hasTokensLeft = settings.dpRequestsMade < settings.dpMaxRequestsAllowed
+
+        e.presentation.isEnabled = hasSelection && hasTokensLeft
+
+        if (!hasTokensLeft) {
+            e.presentation.text = "Send to GenAI (Limit Reached)"
+        } else {
+            e.presentation.text = "Send to GenAI"
         }
     }
 }

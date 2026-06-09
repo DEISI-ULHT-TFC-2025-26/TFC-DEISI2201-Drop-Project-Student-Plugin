@@ -22,6 +22,8 @@ class SettingsState : PersistentStateComponent<SettingsState> {
     var autoSendPrompt: Boolean = false
     var publicAssignments: MutableList<String> = mutableListOf()
     var sentenceList: MutableList<String> = mutableListOf()
+    var dpMaxRequestsAllowed: Int = 3
+    var dpRequestsMade: Int = 0
 
     companion object {
         fun getInstance(): SettingsState {

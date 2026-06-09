@@ -83,14 +83,19 @@ class GptInteraction(var project: Project) {
     private fun processPrompt(): String {
 
         val settingsState = SettingsState.getInstance()
-        val apiKey = "Key da API"
+        val apiKey = "sk-8r9FghcFF5UyzzJu37mYHA"
 
         if (apiKey == "") {
             DefaultNotification.notify(project, "No API key set")
             return "Error: No API key set"
         }
 
-        var apiUrl = "URL da API"
+        if (settingsState.dpRequestsMade >= settingsState.dpMaxRequestsAllowed) {
+            DefaultNotification.notify(project, "Drop Project: Request limit reached for this assignment.")
+            return "Error: Request limit reached for this assignment."
+        }
+
+        var apiUrl = "https://modelos.ai.ulusofona.pt/v1/chat/completions"
 
         //apiUrl = "https://api.openai.com/v1/completions"
 
@@ -187,6 +192,8 @@ class GptInteraction(var project: Project) {
             responseLog.add(myResponse)
 
             logMessageGpt(myResponse.choices.first().message.content)
+
+            settingsState.dpRequestsMade++
 
             return myResponse.choices.first().message.content
 

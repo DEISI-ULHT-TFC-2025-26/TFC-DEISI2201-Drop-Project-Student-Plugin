@@ -71,8 +71,13 @@ class UIGpt() {
                     if (e.isShiftDown) {
                         textField.append("\n")
                     } else if (!waitingForResponse) {
-                        e.consume()
-                        sendPrompt()
+                        val settings = SettingsState.getInstance()
+                        if (settings.dpRequestsMade < settings.dpMaxRequestsAllowed) {
+                            e.consume()
+                            sendPrompt()
+                        } else {
+                            e.consume()
+                        }
                     }
                 }
             }
@@ -145,7 +150,12 @@ class UIGpt() {
         // Botão de envio renomeado para GenAI
         sendButton = JButton("Ask GenAI")
         sendButton.addMouseListener(object : MouseAdapter() {
-            override fun mousePressed(e: MouseEvent?) = sendPrompt()
+            override fun mousePressed(e: MouseEvent?) {
+                val settings = SettingsState.getInstance()
+                if (settings.dpRequestsMade < settings.dpMaxRequestsAllowed) {
+                    sendPrompt()
+                }
+            }
         })
 
         // Listener para o botão de limpar chat
@@ -238,6 +248,8 @@ class UIGpt() {
             horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
             verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_NEVER
         }
+
+        checkDropProjectLimits()
     }
 
     private fun updateTextFieldSize() {
@@ -270,6 +282,23 @@ class UIGpt() {
 
     fun addToPrompt(text : String) {
         textField.text += text
+    }
+
+    // 🛡️ Nova função para verificar os limites e trancar os componentes gráficos da ToolWindow
+    private fun checkDropProjectLimits() {
+        val settings = SettingsState.getInstance()
+        val hasTokensLeft = settings.dpRequestsMade < settings.dpMaxRequestsAllowed
+
+        SwingUtilities.invokeLater {
+            sendButton.isEnabled = hasTokensLeft
+            textField.isEnabled = hasTokensLeft
+
+            if (!hasTokensLeft) {
+                sendButton.text = "Ask GenAI (Limit Reached)"
+            } else {
+                sendButton.text = "Ask GenAI"
+            }
+        }
     }
 
     fun sendPrompt() {
@@ -307,8 +336,11 @@ class UIGpt() {
                 }
 
                 SwingUtilities.invokeLater {
-                    sendButton.isEnabled = true
-                    waitingForResponse = false
+                    val settings = SettingsState.getInstance()
+                    if (settings.dpRequestsMade < settings.dpMaxRequestsAllowed) {
+                        sendButton.isEnabled = true
+                        waitingForResponse = false
+                    }
                 }
             }
         }
@@ -338,6 +370,9 @@ class UIGpt() {
 
     private fun updateChatScreen() {
         responseArea.text = chatHtml.getHtmlChat()
+
+        checkDropProjectLimits()
+
         SwingUtilities.invokeLater {
             uI.verticalScrollBar.value = uI.verticalScrollBar.maximum
         }
