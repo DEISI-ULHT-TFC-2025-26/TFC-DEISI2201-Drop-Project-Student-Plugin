@@ -82,7 +82,7 @@ class GptInteraction(var project: Project) {
     private fun processPrompt(): String {
 
         val settingsState = SettingsState.getInstance()
-        val apiKey = "sk-8r9FghcFF5UyzzJu37mYHA"
+        val apiKey = "key da api"
 
         if (apiKey == "") {
             DefaultNotification.notify(project, "No API key set")
@@ -94,7 +94,7 @@ class GptInteraction(var project: Project) {
             return "Error: Request limit reached for this assignment."
         }
 
-        var apiUrl = "https://modelos.ai.ulusofona.pt/v1/chat/completions"
+        var apiUrl = "url da api"
 
         val finalMessages = ArrayList<Message>()
 
